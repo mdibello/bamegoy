@@ -73,6 +73,10 @@ impl CPU {
         self.c = val.lo();
         8
       },
+      0x04 => {
+        // INC B
+        inc_8bit_reg(&mut self.b, &mut self.f)
+      }
       0x05 => {
         // DEC b
         let orig = self.b;
@@ -402,7 +406,7 @@ impl CPU {
         self.f.set(ZERO, self.a == 0);
         self.f.remove(SUBTRACT);
         self.f.insert(HALF_CARRY);
-        self.f.remove(CARRY); 
+        self.f.remove(CARRY);
         4
       },
       0xa3 => {
@@ -645,7 +649,7 @@ impl CPU {
     }
   }
 
-  fn push_short(&mut self, memory: &mut Memory, value: u16) { 
+  fn push_short(&mut self, memory: &mut Memory, value: u16) {
     println!("pushing {:x} onto stack", value);
     self.push_byte(memory, value.hi());
     self.push_byte(memory, value.lo());
@@ -686,7 +690,7 @@ impl CPU {
     self.program_counter += 1;
     value
   }
-  
+
   fn hl(&self) -> u16 {
     (self.h as u16) << 8 | self.l as u16
   }
@@ -702,4 +706,14 @@ impl CPU {
   fn de(&self) -> u16 {
     (self.d as u16 ) << 8 | self.e as u16
   }
+}
+
+fn inc_8bit_reg(register: &mut u8, flags: &mut Flags) -> i64 {
+  // INC B/C/D/E/F/H/L
+  let orig = *register;
+  *register = (*register).wrapping_add(1);
+  (*flags).set(ZERO, *register == 0);
+  (*flags).remove(SUBTRACT);
+  (*flags).set(HALF_CARRY, (orig ^ 1 ^ *register & 0x10) == 0x10);
+  4
 }
