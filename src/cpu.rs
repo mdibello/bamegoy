@@ -21,7 +21,7 @@ pub struct CPU {
   l: u8,
   stack_pointer: u16,
   program_counter: u16,
-  interrupts: bool // IME
+  interrupts: bool
 }
 
 impl CPU {
@@ -75,11 +75,11 @@ impl CPU {
       },
       0x04 => {
         // INC B
-        inc_8bit_reg(&mut self.b, &mut self.f)
+        inc_r8(&mut self.b, &mut self.f)
       },
       0x05 => {
         // DEC B
-        dec_8bit_reg(&mut self.b, &mut self.f)
+        dec_r8(&mut self.b, &mut self.f)
       },
       0x06 => {
         // LD n into B
@@ -89,13 +89,11 @@ impl CPU {
       },
       0x07 => {
         // RLCA
-        let old_carry = (self.f.bits & CARRY.bits) >> 4; // 0 or 1
         self.f.remove(ZERO);
         self.f.remove(SUBTRACT);
         self.f.remove(HALF_CARRY);
         self.f.set(CARRY, (self.a & 0x80) == 0x80);
         self.a <<= 1;
-        self.a |= old_carry;
         4
       },
       0x0b => {
@@ -107,11 +105,11 @@ impl CPU {
       },
       0x0c => {
         // INC C
-        inc_8bit_reg(&mut self.c, &mut self.f)
+        inc_r8(&mut self.c, &mut self.f)
       },
       0x0d => {
         // DEC C
-        dec_8bit_reg(&mut self.c, &mut self.f)
+        dec_r8(&mut self.c, &mut self.f)
       },
       0x0e => {
         // LD n into C
@@ -146,11 +144,11 @@ impl CPU {
       },
       0x14 => {
         // INC D
-        inc_8bit_reg(&mut self.d, &mut self.f)
+        inc_r8(&mut self.d, &mut self.f)
       },
       0x15 => {
         // DEC D
-        dec_8bit_reg(&mut self.d, &mut self.f)
+        dec_r8(&mut self.d, &mut self.f)
       },
       0x18 => {
         // JR
@@ -165,11 +163,11 @@ impl CPU {
       },
       0x1c => {
         // INC E
-        inc_8bit_reg(&mut self.e, &mut self.f)
+        inc_r8(&mut self.e, &mut self.f)
       },
       0x1d => {
         // DEC E
-        dec_8bit_reg(&mut self.e, &mut self.f)
+        dec_r8(&mut self.e, &mut self.f)
       },
       0x20 => {
         // JR NZ
@@ -205,11 +203,11 @@ impl CPU {
       },
       0x24 => {
         // INC H
-        inc_8bit_reg(&mut self.h, &mut self.f)
+        inc_r8(&mut self.h, &mut self.f)
       },
       0x25 => {
         // DEC H
-        dec_8bit_reg(&mut self.h, &mut self.f)
+        dec_r8(&mut self.h, &mut self.f)
       },
       0x28 => {
         // JR Z,r8
@@ -231,11 +229,11 @@ impl CPU {
       },
       0x2c => {
         // INC L
-        inc_8bit_reg(&mut self.l, &mut self.f)
+        inc_r8(&mut self.l, &mut self.f)
       },
       0x2d => {
         // DEC L
-        dec_8bit_reg(&mut self.l, &mut self.f)
+        dec_r8(&mut self.l, &mut self.f)
       },
       0x31 => {
         // LD SP,d16
@@ -277,11 +275,11 @@ impl CPU {
       },
       0x3c => {
         // INC A
-        inc_8bit_reg(&mut self.a, &mut self.f)
+        inc_r8(&mut self.a, &mut self.f)
       },
       0x3d => {
         // DEC A
-        dec_8bit_reg(&mut self.a, &mut self.f)
+        dec_r8(&mut self.a, &mut self.f)
       },
       0x3e => {
         // LD # into A
@@ -343,7 +341,7 @@ impl CPU {
         // LD A, H
         self.a = self.h;
         4
-      }
+      },
       0x7d => {
         // LD A,L
         self.a = self.l;
@@ -358,7 +356,7 @@ impl CPU {
         // LD A,A
         // self.a = self.a;
         4
-      }
+      },
       0x83 => {
         // ADD A,E
         let original = self.a;
@@ -699,7 +697,7 @@ impl CPU {
   }
 }
 
-fn inc_8bit_reg(register: &mut u8, flags: &mut Flags) -> i64 {
+fn inc_r8(register: &mut u8, flags: &mut Flags) -> i64 {
   // INC 8-bit register
   let orig = *register;
   *register = (*register).wrapping_add(1);
@@ -709,7 +707,7 @@ fn inc_8bit_reg(register: &mut u8, flags: &mut Flags) -> i64 {
   4
 }
 
-fn dec_8bit_reg(register: &mut u8, flags: &mut Flags) -> i64 {
+fn dec_r8(register: &mut u8, flags: &mut Flags) -> i64 {
   // DEC 8-bit register
   let orig = *register;
   *register = (*register).wrapping_sub(1);
