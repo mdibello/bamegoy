@@ -110,12 +110,7 @@ impl CPU {
       }
       0x0c => {
         // INC C
-        let orig = self.c;
-        self.c = self.c.wrapping_add(1);
-        self.f.set(ZERO, self.c == 0);
-        self.f.remove(SUBTRACT);
-        self.f.set(HALF_CARRY, (orig ^ 1 ^ self.c & 0x10) == 0x10);
-        4
+        inc_8bit_reg(&mut self.c, &mut self.f)
       },
       0x0d => {
         // DEC c
@@ -157,6 +152,10 @@ impl CPU {
         self.e = val.lo();
         8
       },
+      0x14 => {
+        // INC D
+        inc_8bit_reg(&mut self.d, &mut self.f)
+      }
       0x18 => {
         // JR
         let rel_target = self.read_signed_byte_immediate(memory);
@@ -170,12 +169,7 @@ impl CPU {
       },
       0x1c => {
         // INC E
-        let orig = self.e;
-        self.e = self.e.wrapping_add(1);
-        self.f.set(ZERO, self.e == 0);
-        self.f.remove(SUBTRACT);
-        self.f.set(HALF_CARRY, (orig ^ 1 ^ self.e & 0x10) == 0x10);
-        4
+        inc_8bit_reg(&mut self.e, &mut self.f)
       },
       0x20 => {
         // JR NZ
@@ -211,12 +205,7 @@ impl CPU {
       },
       0x24 => {
         // INC H
-        let orig = self.h;
-        self.e = self.h.wrapping_add(1);
-        self.f.set(ZERO, self.h == 0);
-        self.f.remove(SUBTRACT);
-        self.f.set(HALF_CARRY, (orig ^ 1 ^ self.h & 0x10) == 0x10);
-        4
+        inc_8bit_reg(&mut self.h, &mut self.f)
       }
       0x28 => {
         // JR Z,r8
@@ -238,12 +227,7 @@ impl CPU {
       },
       0x2c => {
         // INC L
-        let orig = self.l;
-        self.l = self.l.wrapping_add(1);
-        self.f.set(ZERO, self.l == 0);
-        self.f.remove(SUBTRACT);
-        self.f.set(HALF_CARRY, (orig ^ 1 ^ self.l & 0x10) == 0x10);
-        4
+        inc_8bit_reg(&mut self.l, &mut self.f)
       },
       0x31 => {
         // LD SP,d16
@@ -285,12 +269,7 @@ impl CPU {
       },
       0x3c => {
         // INC A
-        let orig = self.a;
-        self.a = self.a.wrapping_add(1);
-        self.f.set(ZERO, self.a == 0);
-        self.f.remove(SUBTRACT);
-        self.f.set(HALF_CARRY, (orig ^ 1 ^ self.a & 0x10) == 0x10);
-        4
+        inc_8bit_reg(&mut self.a, &mut self.f)
       },
       0x3e => {
         // LD # into A
