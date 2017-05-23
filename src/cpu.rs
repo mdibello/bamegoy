@@ -244,6 +244,33 @@ impl CPU {
         self.l = result.lo();
         8
       },
+      0x33 => {
+        // INC SP
+        self.stack_pointer = self.stack_pointer.wrapping_add(1);
+        8
+      },
+      0x34 => {
+        // INC (HL)
+        let orig = self.read_byte_immediate(memory);
+        let value = orig.wrapping_add(1);
+        let destination = self.hl();
+        memory.write_byte(destination, value);
+        self.f.set(ZERO, value == 0);
+        self.f.remove(SUBTRACT);
+        self.f.set(HALF_CARRY, (orig ^ 1 ^ value & 0x10) == 0x10);
+        12
+      },
+      0x35 => {
+        // DEC (HL)
+        let orig = self.read_byte_immediate(memory);
+        let value = orig.wrapping_sub(1);
+        let destination = self.hl();
+        memory.write_byte(destination, value);
+        self.f.set(ZERO, value == 0);
+        self.f.insert(SUBTRACT);
+        self.f.set(HALF_CARRY, (orig ^ !1 ^ value & 0x10) == 0x10);
+        12
+      },
       0x36 => {
         // LD (HL),d8
         let value = self.read_byte_immediate(memory);
@@ -267,6 +294,11 @@ impl CPU {
         let val = self.hl().wrapping_sub(1);
         self.h = val.hi();
         self.l = val.lo();
+        8
+      },
+      0x3b => {
+        // DEC SP
+        self.stack_pointer = self.stack_pointer.wrapping_sub(1);
         8
       },
       0x3c => {
@@ -709,7 +741,7 @@ fn dec_r8(register: &mut u8, flags: &mut Flags) -> i64 {
   *register = (*register).wrapping_sub(1);
   (*flags).set(ZERO, (*register) == 0);
   (*flags).insert(SUBTRACT);
-  (*flags).set(HALF_CARRY, (orig ^ !1 ^ (*register)) & 0x10 == 0x10);
+  (*flags).set(HALF_CARRY, (orig ^ !1 ^ *register & 0x10) == 0x10);
   4
 }
 
