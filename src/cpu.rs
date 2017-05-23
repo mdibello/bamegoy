@@ -67,11 +67,8 @@ impl CPU {
         8
       },
       0x03 => {
-        // INC bc
-        let val = self.bc().wrapping_add(1);
-        self.b = val.hi();
-        self.c = val.lo();
-        8
+        // INC BC
+        inc_double_r8(&mut self.b, &mut self.c)
       },
       0x04 => {
         // INC B
@@ -96,12 +93,21 @@ impl CPU {
         self.a <<= 1;
         4
       },
-      0x0b => {
-        // DEC bc
-        let val = self.bc().wrapping_sub(1);
-        self.b = val.hi();
-        self.c = val.lo();
+      0x09 => {
+        // ADD HL,BC
+        let orig = self.hl();
+        let val = self.hl().wrapping_add(self.bc());
+        self.h = val.hi();
+        self.l = val.lo();
+        let res = self.hl();
+        self.f.remove(SUBTRACT);
+        self.f.set(HALF_CARRY, (orig ^ val ^ res) & 0x100 == 0x100);
+        self.f.set(CARRY, res < orig);
         8
+      },
+      0x0b => {
+        // DEC BC
+        dec_double_r8(&mut self.b, &mut self.c)
       },
       0x0c => {
         // INC C
@@ -117,18 +123,6 @@ impl CPU {
         self.c = value;
         8
       },
-      0x09 => {
-        // ADD HL,BC
-        let orig = self.hl();
-        let val = self.hl().wrapping_add(self.bc());
-        self.h = val.hi();
-        self.l = val.lo();
-        let res = self.hl();
-        self.f.remove(SUBTRACT);
-        self.f.set(HALF_CARRY, (orig ^ val ^ res) & 0x100 == 0x100);
-        self.f.set(CARRY, res < orig);
-        8
-      },
       0x11 => {
         // LD DE,d16
         self.e = self.read_byte_immediate(memory);
@@ -137,10 +131,7 @@ impl CPU {
       },
       0x13 => {
         // INC DE
-        let val = self.de().wrapping_add(1);
-        self.d = val.hi();
-        self.e = val.lo();
-        8
+        inc_double_r8(&mut self.d, &mut self.e)
       },
       0x14 => {
         // INC D
@@ -160,6 +151,10 @@ impl CPU {
         // LD A,(DE)
         self.a = memory.read_byte(self.de());
         8
+      },
+      0x1b => {
+        // DEC DE
+        dec_double_r8(&mut self.d, &mut self.e)
       },
       0x1c => {
         // INC E
@@ -196,10 +191,7 @@ impl CPU {
       },
       0x23 => {
         // INC HL
-        let val = self.hl().wrapping_add(1);
-        self.h = val.hi();
-        self.l = val.lo();
-        8
+        inc_double_r8(&mut self.h, &mut self.l)
       },
       0x24 => {
         // INC H
@@ -226,6 +218,10 @@ impl CPU {
         self.h = val.hi();
         self.l = val.lo();
         8
+      },
+      0x2b => {
+        // DEC HL
+        dec_double_r8(&mut self.h, &mut self.l)
       },
       0x2c => {
         // INC L
@@ -693,7 +689,7 @@ impl CPU {
   }
 
   fn de(&self) -> u16 {
-    (self.d as u16 ) << 8 | self.e as u16
+    (self.d as u16) << 8 | self.e as u16
   }
 }
 
@@ -715,4 +711,22 @@ fn dec_r8(register: &mut u8, flags: &mut Flags) -> i64 {
   (*flags).insert(SUBTRACT);
   (*flags).set(HALF_CARRY, (orig ^ !1 ^ (*register)) & 0x10 == 0x10);
   4
+}
+
+fn inc_double_r8(hiReg: &mut u8, loReg: &mut u8) -> i64 {
+  // INC 16-bit register (formed by two 8-bit registers)
+  let combined = (*hiReg as u16) << 8 | *loReg as u16;
+  let val = combined.wrapping_add(1);
+  *hiReg = val.hi();
+  *loReg = val.lo();
+  8
+}
+
+fn dec_double_r8(hiReg: &mut u8, loReg: &mut u8) -> i64 {
+  // DEC 16-bit register (formed by two 8-bit registers)
+  let combined = (*hiReg as u16) << 8 | *loReg as u16;
+  let val = combined.wrapping_sub(1);
+  *hiReg = val.hi();
+  *loReg = val.lo();
+  8
 }
