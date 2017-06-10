@@ -120,15 +120,14 @@ impl CPU {
         4
       },
       0x01 => {
-        // LD BC, d16
+        // LD BC,d16
         self.c = self.read_byte_immediate(memory);
         self.b = self.read_byte_immediate(memory);
         12
       },
       0x02 => {
         // LD (BC),A
-        let value = memory.read_byte((self.b as u16) << 8 | self.c as u16);
-        self.a = value;
+        memory.write_byte(self.bc(), self.a);
         8
       },
       0x03 => {
@@ -160,16 +159,18 @@ impl CPU {
         self.a |= old_carry;
         4
       },
+      0x08 => {
+        let destination = self.read_short_immediate(memory);
+        memory.write_short(destination, self.stack_pointer);
+        20
+      },
       0x09 => {
         // ADD HL,BC
-        let orig = self.hl();
-        let val = self.hl().wrapping_add(self.bc());
-        self.h = val.hi();
-        self.l = val.lo();
-        let res = self.hl();
-        self.f.remove(SUBTRACT);
-        self.f.set(HALF_CARRY, (orig ^ val ^ res) & 0x100 == 0x100);
-        self.f.set(CARRY, res < orig);
+        self.add_hl_r16(self.bc())
+      },
+      0x0a => {
+        // LD A,(BC)
+        self.a = memory.read_byte(self.bc());
         8
       },
       0x0b => {
@@ -185,9 +186,8 @@ impl CPU {
         dec_r8(&mut self.c, &mut self.f)
       },
       0x0e => {
-        // LD n into C
-        let value = self.read_byte_immediate(memory);
-        self.c = value;
+        // LD C,d8
+        self.c = self.read_byte_immediate(memory);
         8
       },
       0x11 => {
@@ -196,6 +196,12 @@ impl CPU {
         self.d = self.read_byte_immediate(memory);
         12
       },
+      0x12 => {
+        // LD DE,d16
+        self.c = self.read_byte_immediate(memory);
+        self.b = self.read_byte_immediate(memory);
+        12
+      }, 
       0x13 => {
         // INC DE
         inc_double_r8(&mut self.d, &mut self.e)
@@ -208,15 +214,25 @@ impl CPU {
         // DEC D
         dec_r8(&mut self.d, &mut self.f)
       },
+      0x16 => {
+        // LD D,d8
+        let value = self.read_byte_immediate(memory);
+        memory.write_byte(self.d, value);
+        8
+      },
       0x18 => {
         // JR
         let rel_target = self.read_signed_byte_immediate(memory);
         self.relative_jump(rel_target);
         12
       },
+      0x19 => {
+        // ADD HL,DE
+        self.add_hl_r16(self.de())
+      },
       0x1a => {
         // LD A,(DE)
-        self.a = memory.read_byte(self.de());
+        self.a = self.read_byte_immediate(self.de());
         8
       },
       0x1b => {
@@ -242,10 +258,9 @@ impl CPU {
         }
       },
       0x21 => {
-        // LD nn into HL
-        let value = self.read_short_immediate(memory);
-        self.h = value.hi();
-        self.l = value.lo();
+        // LD HL,d16
+        self.l = self.read_byte_immediate(memory);
+        self.h = self.read_byte_immediate(memory);
         12
       },
       0x22 => {
@@ -277,6 +292,10 @@ impl CPU {
         } else {
           8
         }
+      },
+      0x29 => {
+        // ADD HL,HL
+        self.add_hl_r16(self.hl())
       },
       0x2a => {
         // LD A,(HL+)
@@ -361,6 +380,10 @@ impl CPU {
         } else {
           8
         }
+      },
+      0x39 => {
+        // ADD HL,SP
+        self.add_hl_r16(self.stack_pointer)
       },
       0x3a => {
         // LD A,(HL-)
@@ -1005,6 +1028,19 @@ impl CPU {
     value
   }
 
+  fn add_hl_r16(&mut self, register: u8) -> i64 {
+    // ADD 16-bit register to HL
+    let orig = self.hl();
+    let val = self.hl().wrapping_add(register);
+    self.h = val.hi();
+    self.l = val.lo();
+    let res = self.hl();
+    self.f.remove(SUBTRACT);
+    self.f.set(HALF_CARRY, (orig ^ val ^ res) & 0x100 == 0x100);
+    self.f.set(CARRY, res < orig);
+    8
+  }
+
   fn hl(&self) -> u16 {
     (self.h as u16) << 8 | self.l as u16
   }
@@ -1057,5 +1093,21 @@ fn dec_double_r8(hi_reg: &mut u8, lo_reg: &mut u8) -> i64 {
   let val = combined.wrapping_sub(1);
   *hi_reg = val.hi();
   *lo_reg = val.lo();
+  8
+}
+
+fn get_bit(bit_num: i64, register: u8) -> u8 {
+  // Get nth bit of a register
+  (register & (1 << bit_num)) >> bit_num
+}
+
+fn rotate_right_carry(register: &mut u8, flags: &mut Flags) -> i64 {
+  // Rotate right, old zero bit to carry flag
+  let zero_bit = get_bit(0, register);
+  *register = (*register >> 1) | (*register << 7);
+  (*flags).set(ZERO, (*register) == 0);
+  (*flags).remove(SUBTRACT);
+  (*flags).remove(HALF_CARRY);
+  (*flags).set(CARRY, zero_bit);
   8
 }
